@@ -5,10 +5,8 @@
 
 (defn transpile
   [source uri]
-  (str (compile-program
-        ;; Wrap program body into a list in order to to read
-        ;; all of it.
-        (rest (read-from-string (str "(do " source ")") uri))) "\n"))
+  (let [forms (read-all-from-string source uri)]
+    (str (compile-program forms) "\n")))
 
 (defn evaluate
   [code url] (eval (transpile code url)))

@@ -569,6 +569,19 @@
   (let [reader (push-back-reader source uri)]
     (read reader true nil false)))
 
+(defn read-all-from-string
+  "Reads all objects from the string s"
+  [source uri]
+  (loop [reader (push-back-reader source uri)
+         forms []
+         sentinel :EOF]
+    (let [form (read reader false sentinel true)]
+      (if (identical? form sentinel)
+        forms
+        (recur reader
+               (conj forms form)
+               sentinel)))))
+
 (defn ^:private read-uuid
   [uuid]
   (if (string? uuid)

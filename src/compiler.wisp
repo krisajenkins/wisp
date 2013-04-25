@@ -345,7 +345,7 @@
   "Compiles given template"
   [form]
   (let [indent-pattern #"\n *$"
-        line-break-patter (RegExp "\n" "g")
+        line-break-pattern (RegExp "\n" "g")
         get-indentation (fn [code] (or (re-find indent-pattern code) "\n"))]
     (loop [code ""
            parts (split (first form) "~{}")
@@ -356,7 +356,7 @@
           code
           (first parts)
           (replace (str "" (first values))
-                    line-break-patter
+                    line-break-pattern
                     (get-indentation (first parts))))
          (rest parts)
          (rest values))

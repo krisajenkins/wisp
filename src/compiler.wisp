@@ -300,31 +300,32 @@
   else returns form."
   [form]
   (if (list? form)
-    (let [op (first form)
-          id (if (symbol? op) (name op))]
-      (cond
-        (special? op) form
-        (macro? op) (execute-macro op (rest form))
-        (and (symbol? op)
-             (not (identical? id ".")))
-          ;; (.substring s 2 5) => (. s substring 2 5)
-          (if (identical? (first id) ".")
-            (if (< (count form) 2)
-              (throw (Error
-                "Malformed member expression, expecting (.member target ...)"))
-              (cons '.
-                    (cons (second form)
-                          (cons (symbol (subs id 1))
-                                (rest (rest form))))))
+    (with-meta (let [op (first form)
+                     id (if (symbol? op) (name op))]
+                 (cond
+                  (special? op) form
+                  (macro? op) (execute-macro op (rest form))
+                  (and (symbol? op)
+                       (not (identical? id ".")))
+                  ;; (.substring s 2 5) => (. s substring 2 5)
+                  (if (identical? (first id) ".")
+                    (if (< (count form) 2)
+                      (throw (Error
+                              "Malformed member expression, expecting (.member target ...)"))
+                      (cons '.
+                            (cons (second form)
+                                  (cons (symbol (subs id 1))
+                                        (rest (rest form))))))
 
-            ;; (StringBuilder. "foo") => (new StringBuilder "foo")
-            (if (identical? (last id) ".")
-              (cons 'new
-                    (cons (symbol (subs id 0 (dec (count id))))
-                          (rest form)))
-              form))
-        :else form))
-      form))
+                    ;; (StringBuilder. "foo") => (new StringBuilder "foo")
+                    (if (identical? (last id) ".")
+                      (cons 'new
+                            (cons (symbol (subs id 0 (dec (count id))))
+                                  (rest form)))
+                      form))
+                  :else form))
+      (meta form))
+    form))
 
 (defn macroexpand
   "Repeatedly calls macroexpand-1 on form until it no longer

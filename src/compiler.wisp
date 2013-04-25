@@ -5,9 +5,10 @@
          reverse reduce vec last
          map filter take concat] "./sequence")
 (import [odd? dictionary? dictionary merge keys vals contains-vector?
-         map-dictionary string? number? vector? boolean? subs re-find
+         map-dictionary string? number? vector? boolean? subs re-find re-matches
          true? false? nil? re-pattern? inc dec str char int = ==] "./runtime")
 (import [split join upper-case replace] "./string")
+(import [SourceMapGenerator] "source-map")
 
 (defn ^boolean self-evaluating?
   "Returns true if form is self evaluating"
@@ -279,21 +280,51 @@
                         (str "operator is not a procedure: " head)))
               (compile-invoke form)))))))
 
+;;; TODO This is an attempt to generate source maps, but's it's hacky & incomplete.
+;;; We shouldn't really be returning one big string from this
+;;; function. We should return a list of strings, so that we can
+;;; calculate line-numbers when we write the data out. But to do that
+;;; properly, shouldn't all the compile-* methods return a list of
+;;; lines, rather than "\n"-joined strings?
 (defn compile-program
   "compiles all expansions"
   [forms]
   (loop [result []
-         expressions forms]
+         expressions forms
+         source-map (SourceMapGenerator. {:file "someoutput.js"
+                                          :source-root "/"})
+         line 0]
     (if (empty? expressions)
-      (join ";\n\n" result)
+      (do
+        (str
+         "// "(.toString source-map) "\n"
+         "require('source-map-support').install();\n"
+         (join ";\n\n" result)
+         "\n/*\n"
+         "//@ sourceMappingURL=someoutput.map\n"
+         "*/\n"
+         ))
       (let [expression (first expressions)
             form (macroexpand expression)
             expanded (if (list? form)
                        (with-meta form (conj {:top true}
                                              (meta form)))
-                       form)]
-        (recur (conj result (compile expanded))
-               (rest expressions))))))
+                       form)
+            compiled (compile expanded)
+            compiled-line-count (inc (count (.match compiled #"\n")))]
+        (let [end (:end (meta form))
+              line (:line end)
+              column (:column end)]
+          (if (and line column)
+            (.addMapping source-map {:generated {:line (+ line compiled-line-count)
+                                                 :column 1}
+                                     :original {:line (inc line)
+                                                :column (inc column)}
+                                     :source "someinput.wisp"})))
+        (recur (conj result compiled)
+               (rest expressions)
+               source-map
+               (+ line compiled-line-count))))))
 
 (defn macroexpand-1
   "If form represents a macro form, returns its expansion,
